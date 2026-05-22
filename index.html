@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>準備中...</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+  <p style="text-align:center;padding:40px;font-family:sans-serif;">
+    フォームを開いています。少々お待ちください...
+  </p>
+  <script>
+    const LIFF_ID = "2010163520-ndxHTXHV"; // 例: 1234567890-AbCdEfGh
+    const FORM_BASE = "https://docs.google.com/forms/d/e/1FAIpQLSf9GKmZF8BXrI2X-IGo7YP1S6MV7TpIkf07cCU6EdSfQ9-ePQ/viewform";
+    const ENTRY_KEY = "entry.1356230498"; // ステップ1で控えた番号
+
+    liff.init({ liffId: LIFF_ID })
+      .then(() => {
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+        return liff.getProfile();
+      })
+      .then(profile => {
+        if (!profile) return;
+        const url = FORM_BASE + "?usp=pp_url&" + ENTRY_KEY + "=" + encodeURIComponent(profile.userId);
+        liff.openWindow({ url: url, external: true });
+        setTimeout(() => liff.closeWindow(), 500);
+      })
+      .catch(err => {
+        document.body.innerHTML = "<p style='padding:20px;'>エラー: " + err.message + "</p>";
+      });
+  </script>
+</body>
+</html>
