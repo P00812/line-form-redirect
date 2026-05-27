@@ -282,7 +282,7 @@
 
       function loadAvailability() {
         state.selectedSlot = '';
-        elements.slots.innerHTML = '';
+        elements.slots.textContent = '空き時間を読み込み中です。';
         showMessage(elements.formMessage, '');
 
         if (!elements.menu.value || !elements.date.value) {
