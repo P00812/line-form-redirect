@@ -1,36 +1,405 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>準備中...</title>
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>ご予約</title>
+<style>
+  :root {
+    --primary: #06c755;
+    --primary-dark: #05a847;
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 8px 0 16px; }
+  .step { display: none; }
+  .step.active { display: block; }
+  .step-title { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .menu-item, .slot-item {
+    display: block;
+    width: 100%;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: left;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .menu-item:hover, .slot-item:hover { border-color: var(--primary); }
+  .menu-item .duration {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab {
+    flex: 1; padding: 10px; text-align: center;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer; font-size: 14px;
+  }
+  .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .view { display: none; }
+  .view.active { display: block; }
+  .day-group { margin-bottom: 16px; }
+  .day-label { font-size: 13px; font-weight: bold; color: var(--muted); margin-bottom: 6px; }
+  .slot-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .slot-grid .slot-item {
+    padding: 10px 4px; text-align: center; font-size: 14px; margin: 0;
+  }
+  .calendar-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    margin-bottom: 12px;
+  }
+  .cal-head, .cal-cell {
+    text-align: center; padding: 8px 0; font-size: 13px; border-radius: 6px;
+  }
+  .cal-head { font-weight: bold; color: var(--muted); }
+  .cal-cell { background: var(--card); border: 1px solid var(--border); cursor: pointer; }
+  .cal-cell.has-slots { border-color: var(--primary); color: var(--primary); font-weight: bold; }
+  .cal-cell.disabled { background: transparent; border-color: transparent; color: #ccc; cursor: default; }
+  .cal-cell.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .selected-day-slots { margin-top: 16px; }
+  .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .label { color: var(--muted); }
+  textarea {
+    width: 100%; padding: 10px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical;
+  }
+  .btn {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    font-size: 16px; font-weight: bold; cursor: pointer;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 8px; }
+  .loading, .error { text-align: center; padding: 24px; color: var(--muted); }
+  .error { color: var(--danger); }
+  .complete { text-align: center; padding: 24px 0; }
+  .complete .icon { font-size: 48px; color: var(--primary); }
+</style>
 </head>
 <body>
-  <p style="text-align:center;padding:40px;font-family:sans-serif;">
-    フォームを開いています。少々お待ちください...
-  </p>
-  <script>
-    const LIFF_ID = "2010163520-ndxHTXHV"; // 例: 1234567890-AbCdEfGh
-    const FORM_BASE = "https://docs.google.com/forms/d/e/1FAIpQLSf9GKmZF8BXrI2X-IGo7YP1S6MV7TpIkf07cCU6EdSfQ9-ePQ/viewform";
-    const ENTRY_KEY = "entry.1356230498"; // ステップ1で控えた番号
+<div class="container">
+  <h1>ご予約</h1>
 
-    liff.init({ liffId: LIFF_ID })
-      .then(() => {
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
-        return liff.getProfile();
-      })
-      .then(profile => {
-        if (!profile) return;
-        const url = FORM_BASE + "?usp=pp_url&" + ENTRY_KEY + "=" + encodeURIComponent(profile.userId);
-        liff.openWindow({ url: url, external: true });
-        setTimeout(() => liff.closeWindow(), 500);
-      })
-      .catch(err => {
-        document.body.innerHTML = "<p style='padding:20px;'>エラー: " + err.message + "</p>";
+  <!-- Step1: メニュー選択 -->
+  <div id="step-menu" class="step active">
+    <div class="step-title">STEP 1 / 3 　メニューを選択</div>
+    <div id="menu-list"><div class="loading">読み込み中…</div></div>
+  </div>
+
+  <!-- Step2: 日時選択 -->
+  <div id="step-datetime" class="step">
+    <div class="step-title">STEP 2 / 3 　日時を選択</div>
+    <div class="tabs">
+      <div class="tab active" data-view="list">リスト</div>
+      <div class="tab" data-view="calendar">カレンダー</div>
+    </div>
+    <div id="view-list" class="view active">
+      <div id="slot-list"><div class="loading">空き枠を取得中…</div></div>
+    </div>
+    <div id="view-calendar" class="view">
+      <div id="calendar-area"></div>
+      <div id="selected-day-slots" class="selected-day-slots"></div>
+    </div>
+    <button class="btn btn-secondary" onclick="goTo('menu')">← 戻る</button>
+  </div>
+
+  <!-- Step3: 確認 -->
+  <div id="step-confirm" class="step">
+    <div class="step-title">STEP 3 / 3 　内容確認</div>
+    <div class="card">
+      <div class="summary-row"><span class="label">メニュー</span><span id="sum-menu"></span></div>
+      <div class="summary-row"><span class="label">日時</span><span id="sum-datetime"></span></div>
+      <div class="summary-row"><span class="label">お名前</span><span id="sum-name"></span></div>
+    </div>
+    <div class="card">
+      <div class="label" style="font-size:13px;color:var(--muted);margin-bottom:6px;">備考（任意）</div>
+      <textarea id="note" rows="3" placeholder="ご要望があればこちらに"></textarea>
+    </div>
+    <button id="btn-confirm" class="btn btn-primary" onclick="submit()">予約を確定する</button>
+    <button class="btn btn-secondary" onclick="goTo('datetime')">← 戻る</button>
+  </div>
+
+  <!-- 完了 -->
+  <div id="step-done" class="step">
+    <div class="complete">
+      <div class="icon">✓</div>
+      <h2>ご予約ありがとうございます</h2>
+      <div class="card" style="margin-top:16px;text-align:left;">
+        <div class="summary-row"><span class="label">予約番号</span><span id="done-id"></span></div>
+        <div class="summary-row"><span class="label">日時</span><span id="done-datetime"></span></div>
+        <div class="summary-row"><span class="label">メニュー</span><span id="done-menu"></span></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="closeLiff()">閉じる</button>
+    </div>
+  </div>
+
+  <div id="error-box" class="error" style="display:none;"></div>
+</div>
+
+<!-- LIFF SDK -->
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+  // ▼▼▼ ここを書き換える ▼▼▼
+  const LIFF_ID = '2010163520-taHkZY9g';
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwxXSZ2zc8Q4LoF76_3CAqX4MsPUA_DbZKOnx7XsuE4R3RIOGvUggaQCwWPq5fZDg/exec';
+  // ▲▲▲
+
+  const state = {
+    profile: null,
+    menu: null,
+    slot: null,
+    allSlots: [],
+    selectedDay: null,
+  };
+
+  // ---- 初期化 ----
+  window.addEventListener('load', async () => {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      state.profile = await liff.getProfile();
+      await loadMenus();
+    } catch (e) {
+      showError('初期化に失敗しました: ' + e.message);
+    }
+  });
+
+  // ---- メニュー一覧 ----
+  async function loadMenus() {
+    try {
+      const res = await fetch(`${GAS_URL}?action=menus`);
+      const data = await res.json();
+      if (!data.ok) return showError(data.error);
+      const list = document.getElementById('menu-list');
+      list.innerHTML = '';
+      data.menus.forEach((m) => {
+        const btn = document.createElement('button');
+        btn.className = 'menu-item';
+        btn.innerHTML = `${m.name}<span class="duration">所要時間 ${m.durationMin}分</span>`;
+        btn.onclick = () => selectMenu(m);
+        list.appendChild(btn);
       });
-  </script>
+    } catch (e) {
+      showError('メニュー取得失敗: ' + e.message);
+    }
+  }
+
+  function selectMenu(menu) {
+    state.menu = menu;
+    goTo('datetime');
+    loadSlots();
+  }
+
+  // ---- 空き枠 ----
+  async function loadSlots() {
+    document.getElementById('slot-list').innerHTML = '<div class="loading">空き枠を取得中…</div>';
+    try {
+      const res = await fetch(`${GAS_URL}?action=availability`);
+      const data = await res.json();
+      if (!data.ok) return showError(data.error);
+      state.allSlots = data.slots;
+      renderListView();
+      renderCalendarView();
+    } catch (e) {
+      showError('空き枠取得失敗: ' + e.message);
+    }
+  }
+
+  function renderListView() {
+    const container = document.getElementById('slot-list');
+    if (state.allSlots.length === 0) {
+      container.innerHTML = '<div class="loading">空き枠がありません</div>';
+      return;
+    }
+    const groups = {};
+    state.allSlots.forEach((s) => {
+      const day = s.label.split(' ')[0];
+      if (!groups[day]) groups[day] = [];
+      groups[day].push(s);
+    });
+    container.innerHTML = '';
+    Object.keys(groups).forEach((day) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'day-group';
+      wrap.innerHTML = `<div class="day-label">${day}</div>`;
+      const grid = document.createElement('div');
+      grid.className = 'slot-grid';
+      groups[day].forEach((s) => {
+        const time = s.label.split(' ')[1];
+        const btn = document.createElement('button');
+        btn.className = 'slot-item';
+        btn.textContent = time;
+        btn.onclick = () => selectSlot(s);
+        grid.appendChild(btn);
+      });
+      wrap.appendChild(grid);
+      container.appendChild(wrap);
+    });
+  }
+
+  function renderCalendarView() {
+    const area = document.getElementById('calendar-area');
+    const daysWithSlots = new Set();
+    state.allSlots.forEach((s) => {
+      // ラベル "5/28(木) 10:00" から日付キーを再構築（今年想定）
+      const m = s.label.match(/^(\d+)\/(\d+)/);
+      if (m) {
+        const year = new Date().getFullYear();
+        daysWithSlots.add(`${year}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`);
+      }
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startWeekday = firstDay.getDay();
+
+    let html = `<div class="day-label">${year}年${month + 1}月</div>`;
+    html += '<div class="calendar-grid">';
+    ['日','月','火','水','木','金','土'].forEach((w) => {
+      html += `<div class="cal-head">${w}</div>`;
+    });
+    for (let i = 0; i < startWeekday; i++) html += '<div></div>';
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const dt = new Date(year, month, d);
+      const localISO = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const has = daysWithSlots.has(localISO);
+      const isPast = dt < today;
+      const cls = isPast ? 'cal-cell disabled' : (has ? 'cal-cell has-slots' : 'cal-cell disabled');
+      const click = (has && !isPast) ? `onclick="selectDay('${localISO}')"` : '';
+      html += `<div class="${cls}" data-day="${localISO}" ${click}>${d}</div>`;
+    }
+    html += '</div>';
+    area.innerHTML = html;
+  }
+
+  function selectDay(day) {
+    state.selectedDay = day;
+    document.querySelectorAll('.cal-cell').forEach((c) => {
+      c.classList.toggle('selected', c.dataset.day === day);
+    });
+    const [yy, mm, dd] = day.split('-').map(Number);
+    const slots = state.allSlots.filter((s) =>
+      s.label.startsWith(`${mm}/${dd}(`)
+    );
+    const area = document.getElementById('selected-day-slots');
+    if (slots.length === 0) {
+      area.innerHTML = '<div class="loading">空き枠がありません</div>';
+      return;
+    }
+    let html = '<div class="day-label">時間を選択</div><div class="slot-grid">';
+    slots.forEach((s, i) => {
+      const time = s.label.split(' ')[1];
+      html += `<button class="slot-item" data-idx="${i}">${time}</button>`;
+    });
+    html += '</div>';
+    area.innerHTML = html;
+    area.querySelectorAll('.slot-item').forEach((btn, i) => {
+      btn.onclick = () => selectSlot(slots[i]);
+    });
+  }
+
+  function selectSlot(slot) {
+    state.slot = slot;
+    document.getElementById('sum-menu').textContent = state.menu.name;
+    document.getElementById('sum-datetime').textContent = slot.label;
+    document.getElementById('sum-name').textContent = state.profile.displayName;
+    goTo('confirm');
+  }
+
+  // ---- タブ切替 ----
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.onclick = () => {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('view-' + tab.dataset.view).classList.add('active');
+    };
+  });
+
+  // ---- 予約確定 ----
+  async function submit() {
+    const btn = document.getElementById('btn-confirm');
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+    try {
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        // GASのCORSプリフライト回避のため text/plain
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'reserve',
+          userId: state.profile.userId,
+          displayName: state.profile.displayName,
+          menuId: state.menu.id,
+          startISO: state.slot.startISO,
+          note: document.getElementById('note').value,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      document.getElementById('done-id').textContent = data.reservation.id;
+      document.getElementById('done-datetime').textContent = state.slot.label;
+      document.getElementById('done-menu').textContent = data.reservation.menu;
+      goTo('done');
+    } catch (e) {
+      showError('予約に失敗しました: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = '予約を確定する';
+    }
+  }
+
+  // ---- ナビゲーション ----
+  function goTo(name) {
+    document.querySelectorAll('.step').forEach((s) => s.classList.remove('active'));
+    document.getElementById('step-' + name).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function closeLiff() {
+    if (liff.isInClient()) liff.closeWindow();
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('error-box');
+    box.style.display = 'block';
+    box.textContent = msg;
+  }
+</script>
 </body>
 </html>
