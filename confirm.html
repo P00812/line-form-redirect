@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>予約確認</title>
+<style>
+  :root {
+    --primary: #06c755;
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 8px 0 16px; }
+  .reservation-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .res-datetime {
+    font-size: 18px; font-weight: bold; color: var(--text);
+    margin-bottom: 8px;
+  }
+  .res-menu { font-size: 15px; color: var(--text); margin-bottom: 4px; }
+  .res-id { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .res-note { font-size: 13px; color: var(--muted); margin-bottom: 12px; word-break: break-word; }
+  .btn {
+    width: 100%; padding: 12px; border-radius: 8px; border: none;
+    font-size: 14px; font-weight: bold; cursor: pointer;
+  }
+  .btn-danger {
+    background: var(--danger-bg); color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+  .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-close {
+    width: 100%; padding: 14px; border-radius: 10px;
+    background: var(--primary); color: #fff;
+    border: none; font-size: 16px; font-weight: bold; cursor: pointer;
+    margin-top: 16px;
+  }
+  .loading, .empty, .error {
+    text-align: center; padding: 32px 16px; color: var(--muted);
+  }
+  .error { color: var(--danger); }
+  .empty .icon { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
+
+  /* モーダル */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: 24px;
+  }
+  .modal-bg.active { display: flex; }
+  .modal {
+    background: #fff; border-radius: 12px; padding: 20px;
+    max-width: 360px; width: 100%;
+  }
+  .modal h3 { margin: 0 0 12px; font-size: 17px; }
+  .modal p { margin: 0 0 16px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .modal-buttons { display: flex; gap: 8px; }
+  .modal-buttons button { flex: 1; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; border: 1px solid var(--border); }
+  .modal-buttons .confirm { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .modal-buttons .cancel { background: #fff; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>ご予約の確認</h1>
+
+  <div id="list">
+    <div class="loading">読み込み中…</div>
+  </div>
+
+  <button class="btn-close" onclick="closeLiff()">閉じる</button>
+</div>
+
+<!-- キャンセル確認モーダル -->
+<div id="modal-bg" class="modal-bg">
+  <div class="modal">
+    <h3>予約をキャンセルしますか？</h3>
+    <p id="modal-detail"></p>
+    <div class="modal-buttons">
+      <button class="cancel" onclick="closeModal()">戻る</button>
+      <button class="confirm" id="modal-confirm">キャンセルする</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+  // ▼▼▼ ここを書き換える ▼▼▼
+  const LIFF_ID = 'YOUR_CONFIRM_LIFF_ID';
+  const GAS_URL = 'https://script.google.com/macros/s/XXXXXX/exec';
+  // ▲▲▲
+
+  const state = {
+    profile: null,
+    reservations: [],
+  };
+
+  window.addEventListener('load', async () => {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      state.profile = await liff.getProfile();
+      await loadReservations();
+    } catch (e) {
+      showError('初期化に失敗しました: ' + e.message);
+    }
+  });
+
+  async function loadReservations() {
+    document.getElementById('list').innerHTML = '<div class="loading">読み込み中…</div>';
+    try {
+      const url = `${GAS_URL}?action=my-reservations&userId=${encodeURIComponent(state.profile.userId)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.ok) return showError(data.error);
+      state.reservations = data.reservations;
+      renderList();
+    } catch (e) {
+      showError('取得に失敗しました: ' + e.message);
+    }
+  }
+
+  function renderList() {
+    const container = document.getElementById('list');
+    if (state.reservations.length === 0) {
+      container.innerHTML = `
+        <div class="empty">
+          <div class="icon">📅</div>
+          <div>現在ご予約はありません</div>
+        </div>
+      `;
+      return;
+    }
+    container.innerHTML = '';
+    state.reservations.forEach((r) => {
+      const card = document.createElement('div');
+      card.className = 'reservation-card';
+      card.innerHTML = `
+        <div class="res-datetime">${escapeHtml(r.label)}</div>
+        <div class="res-menu">${escapeHtml(r.menu)}</div>
+        <div class="res-id">予約番号: ${escapeHtml(r.id)}</div>
+        ${r.note ? `<div class="res-note">備考: ${escapeHtml(r.note)}</div>` : ''}
+        <button class="btn btn-danger" data-id="${escapeHtml(r.id)}">この予約をキャンセル</button>
+      `;
+      card.querySelector('button').onclick = () => openCancelModal(r);
+      container.appendChild(card);
+    });
+  }
+
+  function openCancelModal(reservation) {
+    document.getElementById('modal-detail').innerHTML =
+      `${escapeHtml(reservation.label)}<br>${escapeHtml(reservation.menu)}<br><br>キャンセルすると元には戻せません。`;
+    const btn = document.getElementById('modal-confirm');
+    btn.disabled = false;
+    btn.textContent = 'キャンセルする';
+    btn.onclick = () => doCancel(reservation);
+    document.getElementById('modal-bg').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-bg').classList.remove('active');
+  }
+
+  async function doCancel(reservation) {
+    const btn = document.getElementById('modal-confirm');
+    btn.disabled = true;
+    btn.textContent = '処理中…';
+    try {
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'cancel',
+          userId: state.profile.userId,
+          reservationId: reservation.id,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      closeModal();
+      await loadReservations();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'キャンセルする';
+      alert('キャンセルに失敗しました: ' + e.message);
+    }
+  }
+
+  function closeLiff() {
+    if (liff.isInClient()) liff.closeWindow();
+  }
+
+  function showError(msg) {
+    document.getElementById('list').innerHTML =
+      `<div class="error">${escapeHtml(msg)}</div>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+  }
+</script>
+</body>
+</html>
