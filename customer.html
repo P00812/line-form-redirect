@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>お客様情報</title>
+<style>
+  :root {
+    --primary: #06c755;
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 8px 0 8px; }
+  .lead { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .label {
+    display: block; font-size: 13px; color: var(--muted);
+    margin-bottom: 6px; font-weight: bold;
+  }
+  .optional { font-weight: normal; color: var(--muted); font-size: 11px; margin-left: 6px; }
+  input[type="text"], input[type="tel"], input[type="email"], input[type="date"] {
+    width: 100%; padding: 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 15px; font-family: inherit;
+    background: #fff; color: var(--text);
+  }
+  input:focus { outline: none; border-color: var(--primary); }
+  .btn {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    font-size: 16px; font-weight: bold; cursor: pointer;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-secondary {
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border); margin-top: 8px;
+  }
+  .loading, .error {
+    text-align: center; padding: 32px 16px; color: var(--muted);
+  }
+  .error { color: var(--danger); }
+  .toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--primary); color: #fff; padding: 12px 24px;
+    border-radius: 24px; font-size: 14px; font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; z-index: 1000;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--danger); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>お客様情報</h1>
+  <div class="lead">ご登録いただくとスムーズにご予約いただけます。<br>すべて任意のため、入力できる項目だけで構いません。</div>
+
+  <div id="loading" class="loading">読み込み中…</div>
+
+  <form id="form" style="display:none;">
+    <div class="card">
+      <div class="field">
+        <label class="label" for="name">お名前<span class="optional">任意</span></label>
+        <input type="text" id="name" placeholder="山田 太郎" autocomplete="name" />
+      </div>
+      <div class="field">
+        <label class="label" for="phone">電話番号<span class="optional">任意</span></label>
+        <input type="tel" id="phone" placeholder="090-1234-5678" autocomplete="tel" inputmode="tel" />
+      </div>
+      <div class="field">
+        <label class="label" for="email">メールアドレス<span class="optional">任意</span></label>
+        <input type="email" id="email" placeholder="taro@example.com" autocomplete="email" inputmode="email" />
+      </div>
+      <div class="field">
+        <label class="label" for="birthday">生年月日<span class="optional">任意</span></label>
+        <input type="date" id="birthday" />
+      </div>
+    </div>
+
+    <button type="button" id="btn-save" class="btn btn-primary" onclick="save()">保存する</button>
+    <button type="button" class="btn btn-secondary" onclick="closeLiff()">閉じる</button>
+  </form>
+
+  <div id="error" class="error" style="display:none;"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+  // ▼▼▼ ここを書き換える ▼▼▼
+  const LIFF_ID = 'YOUR_CUSTOMER_LIFF_ID';
+  const GAS_URL = 'https://script.google.com/macros/s/XXXXXX/exec';
+  // ▲▲▲
+
+  const state = { profile: null };
+
+  window.addEventListener('load', async () => {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      state.profile = await liff.getProfile();
+      await loadCustomer();
+    } catch (e) {
+      showError('初期化に失敗しました: ' + e.message);
+    }
+  });
+
+  async function loadCustomer() {
+    try {
+      const url = `${GAS_URL}?action=customer&userId=${encodeURIComponent(state.profile.userId)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.ok) return showError(data.error);
+
+      // 既存値があればフォームに反映
+      if (data.customer) {
+        document.getElementById('name').value     = data.customer.name || '';
+        document.getElementById('phone').value    = data.customer.phone || '';
+        document.getElementById('email').value    = data.customer.email || '';
+        document.getElementById('birthday').value = data.customer.birthday || '';
+      }
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('form').style.display = 'block';
+    } catch (e) {
+      showError('取得に失敗しました: ' + e.message);
+    }
+  }
+
+  async function save() {
+    const btn = document.getElementById('btn-save');
+    btn.disabled = true;
+    btn.textContent = '保存中…';
+    try {
+      const body = {
+        action: 'save-customer',
+        userId: state.profile.userId,
+        displayName: state.profile.displayName,
+        name:     document.getElementById('name').value.trim(),
+        phone:    document.getElementById('phone').value.trim(),
+        email:    document.getElementById('email').value.trim(),
+        birthday: document.getElementById('birthday').value.trim(),
+      };
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      showToast('保存しました');
+      // 自動でLIFFを閉じる
+      setTimeout(() => closeLiff(), 1200);
+    } catch (e) {
+      showToast('保存に失敗しました: ' + e.message, true);
+      btn.disabled = false;
+      btn.textContent = '保存する';
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('loading').style.display = 'none';
+    const box = document.getElementById('error');
+    box.style.display = 'block';
+    box.textContent = msg;
+  }
+
+  function showToast(msg, isError) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.toggle('error', !!isError);
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function closeLiff() {
+    if (liff.isInClient()) liff.closeWindow();
+  }
+</script>
+</body>
+</html>
